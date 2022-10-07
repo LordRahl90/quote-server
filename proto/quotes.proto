@@ -1,0 +1,25 @@
+syntax = "proto3";
+option go_package = "quotes-server/proto";
+
+package pb;
+
+message QuoteResponse {
+    uint32 ID= 1;
+    uint32 AuthorID = 2;
+    string Body = 3;
+    string Author = 4;
+}
+
+message QuoteRequest {
+    bool Random = 1;
+    string Author = 2;
+    uint32 Limit = 3;
+
+    // repeated is used for arrays eg
+    // repeated string Authors = 4;
+}
+
+service Quote {
+    rpc GetQuotes(QuoteRequest) returns (stream QuoteResponse){}
+    rpc GetFilteredQuotes(QuoteRequest) returns (stream QuoteResponse){}
+}

@@ -1,4 +1,4 @@
-# GRPC Quote Server
+# gRPC Quote Server
 
 A gRPC Quote server as reverse proxy for [Quote Server](https://stoicquotesapi.com/).
 

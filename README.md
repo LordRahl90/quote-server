@@ -1,6 +1,6 @@
 # GRPC Quote Server
 
-A gRPC Quote server as reverse proxy for (Quote Server)[https://stoicquotesapi.com/].
+A gRPC Quote server as reverse proxy for [Quote Server](https://stoicquotesapi.com/).
 
 ** Deploy
 * Clone the repository

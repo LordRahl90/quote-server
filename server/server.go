@@ -25,43 +25,39 @@ type Quote struct {
 // QuoteServer servers for quote management
 type QuoteServer struct {
 	proto.QuoteServer
-	// pass every other connection
+	// pass every other connection resource
 }
 
 // GetQuotes return quotes
 // no need for pointers
 func (q *QuoteServer) GetQuotes(req *proto.QuoteRequest, stream proto.Quote_GetQuotesServer) error {
-	// var c chan Quote
 	c := make(chan Quote)
-	go spitOut(stream, c)
+	go spit(stream, c)
 	if req.Limit == 0 {
 		req.Limit = 1
 	}
 	var wg sync.WaitGroup
-	for i := 0; i < int(req.Limit); i++ {
+	for i := 1; i <= int(req.Limit); i++ {
+		i := i
 		wg.Add(1)
-		go func() {
-			i := 1
+		go func(page int) {
 			defer wg.Done()
-			res, err := getQuotes(i)
+			res, err := getBasicQuotes(i)
 			if err != nil {
 				fmt.Printf("Err: %v", err)
+				return
 			}
 			for _, v := range res {
-				fmt.Printf("\nV: %+v\n\n", v)
 				c <- v
 			}
-		}()
+		}(i)
 	}
-	fmt.Printf("Waiting\n")
 	wg.Wait()
 	return nil
 }
 
-func spitOut(stream proto.Quote_GetQuotesServer, c chan Quote) error {
-	fmt.Printf("Spitting started\n")
+func spit(stream proto.Quote_GetQuotesServer, c chan Quote) error {
 	for msg := range c {
-		fmt.Printf("\nReceived: %v\n\n", msg)
 		res := &proto.QuoteResponse{
 			ID:       msg.ID,
 			Body:     msg.Body,
@@ -71,25 +67,35 @@ func spitOut(stream proto.Quote_GetQuotesServer, c chan Quote) error {
 		if err := stream.Send(res); err != nil {
 			return err
 		}
-		fmt.Printf("Message Sent\n")
 	}
 	return nil
 }
 
 // GetFilteredQuotes return filtered version of quotes
 func (q *QuoteServer) GetFilteredQuotes(req *proto.QuoteRequest, stream proto.Quote_GetFilteredQuotesServer) error {
+	c := make(chan Quote)
+	go spit(stream, c)
+	if req.Limit == 0 {
+		req.Limit = 1
+	}
+
+	res, err := getFilteredPaths(req.Author)
+	if err != nil {
+		fmt.Printf("Err: %v", err)
+		return err
+	}
+	for _, v := range res {
+		c <- v
+	}
+
 	return nil
 }
 
-func getQuotes(limit int) (result []Quote, err error) {
-	fmt.Printf("Getting Quotes\n")
+func handleRequest(endpoint string) (result []Quote, err error) {
 	client := http.Client{
 		Timeout: 1 * time.Second,
 	}
-
-	path := "https://stoicquotesapi.com/v1/api/quotes"
-
-	req, err := http.NewRequest(http.MethodGet, path, nil)
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
 		return
 	}
@@ -103,4 +109,14 @@ func getQuotes(limit int) (result []Quote, err error) {
 	}
 	result = res.Data
 	return
+}
+
+func getFilteredPaths(author string) (result []Quote, err error) {
+	path := "https://stoicquotesapi.com/v1/api/quotes/" + author
+	return handleRequest(path)
+}
+
+func getBasicQuotes(page int) (result []Quote, err error) {
+	path := fmt.Sprintf("https://stoicquotesapi.com/v1/api/quotes?page=%d", page)
+	return handleRequest(path)
 }
